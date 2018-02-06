@@ -1,3 +1,4 @@
+#include "begrenzung.h"
 #include "sensor.h"
 #include <QDebug>
 #include <QtMath>
@@ -36,16 +37,66 @@ void Sensor::setPosition(qreal sX, qreal sY, qreal eX, qreal eY)
     }
 }
 
-void Sensor::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
+void Sensor::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
 {
-    QGraphicsLineItem::paint(painter, option, widget);
-    QPen pen;
-    pen.setWidth(2);
-    painter->setPen(pen);
     for(auto &it : vec_senCheckPoints)
     {
-        pen.setColor((it->state == AKTIV ? Qt::red : Qt::black));
-        painter->setPen(pen);
-        painter->drawEllipse(QPoint(it->x, it->y), 1,1);
+        if(it->state == AKTIV)
+        {
+            //painter->setOpacity(.5);
+            //QGraphicsLineItem::paint(painter, nullptr, nullptr);
+            //pen.setColor((it->state == AKTIV ? Qt::red : Qt::black));
+            QPen pen;
+            QBrush brush;
+
+            pen.setWidth(3);
+            brush.setStyle(Qt::SolidPattern);
+            pen.setColor(Qt::red);
+            brush.setColor(pen.color());
+            painter->setPen(pen);
+            painter->setBrush(brush);
+            painter->drawEllipse(QPoint(it->x, it->y), 1,1);
+        }
     }
+}
+
+CollisionCheckPoint *Sensor::checkCollision()
+{
+    if(sensorCollosionPoint)
+    {
+        sensorCollosionPoint->state = INAKTIV;
+        sensorCollosionPoint = nullptr;
+    }
+
+    CollisionCheckPoint* nearestCollisionPoint = nullptr;
+    for(auto &it : collidingItems())
+    {
+        Begrenzung* collision = qgraphicsitem_cast<Begrenzung*>(it);
+        if(collision)
+        {
+            qreal minDistance = 99999;
+            for(auto &vec_sen : vec_senCheckPoints)
+            {
+                for(auto &vec_beg : collision->boundCheckPoints())
+                {
+                    QPointF mappedCoordinates = this->mapFromItem(vec_beg->parent, QPointF(vec_beg->x, vec_beg->y));
+
+                    qreal tempDistance = qSqrt((vec_sen->x - mappedCoordinates.x()) * (vec_sen->x - mappedCoordinates.x()) +
+                                               (vec_sen->y - mappedCoordinates.y()) * (vec_sen->y - mappedCoordinates.y()));
+                    if(tempDistance < minDistance)
+                    {
+                        minDistance = tempDistance;
+                        nearestCollisionPoint = vec_beg;
+                        sensorCollosionPoint = vec_sen;
+                    }
+                }
+            }
+        }
+    }
+
+    if(sensorCollosionPoint)
+    {
+        sensorCollosionPoint->state = AKTIV;
+    }
+    return nearestCollisionPoint;
 }

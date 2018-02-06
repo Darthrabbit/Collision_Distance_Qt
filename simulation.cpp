@@ -6,11 +6,19 @@ Simulation::Simulation(QWidget *parent) :
     ui(new Ui::Simulation), ptr_simScene(new QGraphicsScene(this))
 {
     ui->setupUi(this);
-    ui->ptr_simView->setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
     ui->ptr_simView->setScene(ptr_simScene);
 
-    ptr_simScene->setSceneRect(0,0,250,250);
-    setVehicle(new Fahrzeug(50,50,5));
+    setVehicle(new Fahrzeug(80, 80, 100));
+
+    addPath(new Begrenzung(GERADE_OBEN), 150, -150);
+    addPath(new Begrenzung(GERADE_OBEN), 50, -150);
+    addPath(new Begrenzung(GERADE_OBEN), -50, -150);
+    addPath(new Begrenzung(GERADE_RECHTS), -150, -150);
+
+    addPath(new Begrenzung(GERADE_UNTEN), 150, -150);
+    addPath(new Begrenzung(GERADE_RECHTS), 50, -50);
+    addPath(new Begrenzung(GERADE_LINKS), 50, -50);
+    addPath(new Begrenzung(GERADE_UNTEN), -50, -150);
 }
 
 Simulation::~Simulation()
@@ -21,8 +29,9 @@ Simulation::~Simulation()
     delete ptr_simTimer;
 }
 
-void Simulation::addPath(Begrenzung *ptr_newPath)
+void Simulation::addPath(Begrenzung *ptr_newPath, qreal x, qreal y)
 {
+    ptr_newPath->setPos(x,y);
     vec_simPath.push_back(ptr_newPath);
     ptr_simScene->addItem(ptr_newPath);
 }
@@ -40,46 +49,71 @@ void Simulation::setVehicle(Fahrzeug *ptr_newVehicle)
 
 void Simulation::startSimulation()
 {
-    ptr_simTimer = new QTimer();
-    connect(ptr_simTimer, SIGNAL(timeout()), ptr_simScene, SLOT(advance()));
-    ptr_simTimer->setInterval(1000.0/ 40.0);
-    ptr_simTimer->start();
+    if(simulationRunning == false)
+    {
+        ptr_simTimer = new QTimer();
+        connect(ptr_simTimer, SIGNAL(timeout()), ptr_simScene, SLOT(advance()));
+        connect(ptr_simTimer, SIGNAL(timeout()), ui->ptr_simView->viewport(), SLOT(repaint()));
+        connect(ptr_simTimer, SIGNAL(timeout()), this, SLOT(checkVehicleCollision()));
+
+        ptr_simTimer->setInterval(1000.0/ 40.0);
+        ptr_simTimer->start();
+        simulationRunning = true;
+    }
 }
 
 void Simulation::stopSimulation()
 {
-    disconnect(ptr_simTimer, SIGNAL(timeout()), ptr_simScene, SLOT(advance()));
-    delete ptr_simTimer;
-    ptr_simTimer = nullptr;
+    if(simulationRunning == true)
+    {
+        ptr_simTimer->stop();
+        disconnect(ptr_simTimer, SIGNAL(timeout()), ptr_simScene, SLOT(advance()));
+        disconnect(ptr_simTimer, SIGNAL(timeout()), ui->ptr_simView->viewport(), SLOT(repaint()));
+        disconnect(ptr_simTimer, SIGNAL(timeout()), this, SLOT(checkVehicleCollision()));
+        delete ptr_simTimer;
+        ptr_simTimer = nullptr;
+        simulationRunning = false;
+    }
 }
 
 void Simulation::keyPressEvent(QKeyEvent *event)
 {
-    int speed = 10;
-    if(event->key() == Qt::Key_W)
+    if(ptr_simVehicle)
     {
-        ptr_simVehicle->accelerate(speed);
-        return;
-    }
-    double rotation = M_PI / 10.0;
-    if(event->key() == Qt::Key_A)
-    {
-        ptr_simVehicle->changeDirection(-rotation);
-        return;
-    }
-    if(event->key() == Qt::Key_D)
-    {
-        ptr_simVehicle->changeDirection(rotation);
-        return;
+        if(event->key() == Qt::Key_W)
+        {
+            ptr_simVehicle->accelerate();
+            return;
+        }
+        if(event->key() == Qt::Key_S)
+        {
+            ptr_simVehicle->reverse();
+            return;
+        }
+
+        if(event->key() == Qt::Key_A)
+        {
+            ptr_simVehicle->changeDirection(-1);
+            return;
+        }
+        if(event->key() == Qt::Key_D)
+        {
+            ptr_simVehicle->changeDirection(1);
+            return;
+        }
     }
 }
 
 void Simulation::keyReleaseEvent(QKeyEvent *event)
 {
-    if(event->key() == Qt::Key_W)
+    if(ptr_simVehicle)
     {
-        ptr_simVehicle->accelerate(0);
-        return;
+        if(event->key() == Qt::Key_W || event->key() == Qt::Key_S)
+        {
+            ptr_simVehicle->stop();
+            return;
+        }
+
     }
 }
 
@@ -91,4 +125,17 @@ void Simulation::on_ptr_buttonStart_clicked()
 void Simulation::on_ptr_buttonStop_clicked()
 {
     stopSimulation();
+}
+
+void Simulation::checkVehicleCollision()
+{
+    for(auto &it : ptr_simVehicle->collidingItems())
+    {
+        Begrenzung* collision = qgraphicsitem_cast<Begrenzung*>(it);
+        if(collision)
+        {
+            stopSimulation();
+            return;
+        }
+    }
 }

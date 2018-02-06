@@ -21,8 +21,8 @@ SOURCES += main.cpp\
 HEADERS  += simulation.h \
     fahrzeug.h \
     sensor.h \
-    global.h \
-    begrenzung.h
+    begrenzung.h \
+    collisionPoint.h
 
 FORMS    += simulation.ui
 
