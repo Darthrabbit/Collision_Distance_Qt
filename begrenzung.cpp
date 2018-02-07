@@ -70,11 +70,11 @@ void Begrenzung::paint(QPainter *painter, const QStyleOptionGraphicsItem *option
 
     for(auto &it : vec_boundCheckPoints)
     {
-        pen.setColor((it->state == AKTIV ? Qt::red : Qt::black));
+        pen.setColor((it->state == AKTIV ? Qt::green : Qt::black));
         brush.setColor(pen.color());
         painter->setPen(pen);
         painter->setBrush(brush);
-        painter->drawEllipse(QPoint(it->x, it->y), 1,1);
+        painter->drawEllipse(QPoint(it->x, it->y), 2,2);
     }
 }
 

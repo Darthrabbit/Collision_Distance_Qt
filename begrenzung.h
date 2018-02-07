@@ -15,7 +15,7 @@ public:
     std::vector<CollisionCheckPoint*> boundCheckPoints() const;
     int type() const;
     void print();
-    enum {Type = UserType + 1};
+    enum {Type = UserType + 2};
 
 private:
     BEGRENZUNGSTYP begType;

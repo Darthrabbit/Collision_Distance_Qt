@@ -28,7 +28,7 @@ public:
     void stopSimulation();
 
     void keyPressEvent(QKeyEvent *event);
-    void keyReleaseEvent(QKeyEvent *event);
+    void keyReleaseEvent(QKeyEvent *even4t);
 private slots:
     void on_ptr_buttonStart_clicked();
     void on_ptr_buttonStop_clicked();
@@ -36,11 +36,15 @@ private slots:
     void checkVehicleCollision();
 
 private:
+    /*Functions*/
+    void paintTrack(int groesse);
+    /*Attributes*/
     Ui::Simulation *ui;
     QGraphicsScene* ptr_simScene;
     Fahrzeug* ptr_simVehicle = nullptr;
     std::vector< Begrenzung* > vec_simPath;
-    QTimer* ptr_simTimer = nullptr;
+    QTimer* ptr_simTimer = new QTimer();
+    QTimer* ptr_simRepaint = new QTimer();
     bool simulationRunning = false;
 };
 

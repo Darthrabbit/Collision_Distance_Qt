@@ -10,15 +10,15 @@ Simulation::Simulation(QWidget *parent) :
 
     setVehicle(new Fahrzeug(80, 80, 100));
 
-    addPath(new Begrenzung(GERADE_OBEN), 150, -150);
-    addPath(new Begrenzung(GERADE_OBEN), 50, -150);
-    addPath(new Begrenzung(GERADE_OBEN), -50, -150);
-    addPath(new Begrenzung(GERADE_RECHTS), -150, -150);
+    connect(ptr_simTimer, SIGNAL(timeout()), ptr_simVehicle, SLOT(checkSensors()));
+    connect(ptr_simTimer, SIGNAL(timeout()), this, SLOT(checkVehicleCollision()));
+    ptr_simTimer->setInterval(1000.0/ 20.0);
 
-    addPath(new Begrenzung(GERADE_UNTEN), 150, -150);
-    addPath(new Begrenzung(GERADE_RECHTS), 50, -50);
-    addPath(new Begrenzung(GERADE_LINKS), 50, -50);
-    addPath(new Begrenzung(GERADE_UNTEN), -50, -150);
+    connect(ptr_simRepaint, SIGNAL(timeout()), ui->ptr_simView->viewport(), SLOT(repaint()));
+    connect(ptr_simRepaint, SIGNAL(timeout()), ptr_simScene, SLOT(advance()));
+    ptr_simRepaint->setInterval(1000.0/40.0);
+
+    paintTrack(5);
 }
 
 Simulation::~Simulation()
@@ -27,6 +27,7 @@ Simulation::~Simulation()
     ptr_simScene->clear();
     delete ptr_simScene;
     delete ptr_simTimer;
+    delete ptr_simRepaint;
 }
 
 void Simulation::addPath(Begrenzung *ptr_newPath, qreal x, qreal y)
@@ -44,20 +45,15 @@ void Simulation::setVehicle(Fahrzeug *ptr_newVehicle)
     }
     ptr_simVehicle = ptr_newVehicle;
     ptr_simScene->addItem(ptr_simVehicle);
-    ptr_simVehicle->setPos(ptr_simVehicle->x(), ptr_simVehicle->y());
 }
 
 void Simulation::startSimulation()
 {
     if(simulationRunning == false)
     {
-        ptr_simTimer = new QTimer();
-        connect(ptr_simTimer, SIGNAL(timeout()), ptr_simScene, SLOT(advance()));
-        connect(ptr_simTimer, SIGNAL(timeout()), ui->ptr_simView->viewport(), SLOT(repaint()));
-        connect(ptr_simTimer, SIGNAL(timeout()), this, SLOT(checkVehicleCollision()));
-
-        ptr_simTimer->setInterval(1000.0/ 40.0);
         ptr_simTimer->start();
+        ptr_simRepaint->start();
+
         simulationRunning = true;
     }
 }
@@ -67,11 +63,7 @@ void Simulation::stopSimulation()
     if(simulationRunning == true)
     {
         ptr_simTimer->stop();
-        disconnect(ptr_simTimer, SIGNAL(timeout()), ptr_simScene, SLOT(advance()));
-        disconnect(ptr_simTimer, SIGNAL(timeout()), ui->ptr_simView->viewport(), SLOT(repaint()));
-        disconnect(ptr_simTimer, SIGNAL(timeout()), this, SLOT(checkVehicleCollision()));
-        delete ptr_simTimer;
-        ptr_simTimer = nullptr;
+        ptr_simRepaint->stop();
         simulationRunning = false;
     }
 }
@@ -138,4 +130,25 @@ void Simulation::checkVehicleCollision()
             return;
         }
     }
+}
+
+void Simulation::paintTrack(int groesse)
+{
+    for(int i = 0; i < groesse; i++)
+    {
+        addPath(new Begrenzung(GERADE_OBEN), -(50 * groesse) + i * 100, -(50 * groesse));
+        addPath(new Begrenzung(GERADE_OBEN), -(50 * groesse) + i * 100, (50 * groesse));
+        addPath(new Begrenzung(GERADE_LINKS), (50 * groesse), -(50 * groesse) + i * 100);
+        addPath(new Begrenzung(GERADE_LINKS), -(50 * groesse), -(50 * groesse) + i * 100);
+    }
+
+    addPath(new Begrenzung(GERADE_OBEN), 150, -150);
+    addPath(new Begrenzung(GERADE_OBEN), 50, -150);
+    addPath(new Begrenzung(GERADE_OBEN), -50, -150);
+    addPath(new Begrenzung(GERADE_RECHTS), -150, -150);
+
+    addPath(new Begrenzung(GERADE_UNTEN), 150, -150);
+    addPath(new Begrenzung(GERADE_RECHTS), 50, -50);
+    addPath(new Begrenzung(GERADE_LINKS), 50, -50);
+    addPath(new Begrenzung(GERADE_UNTEN), -50, -150);
 }

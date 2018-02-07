@@ -11,6 +11,9 @@ public:
     void setPosition(qreal sX, qreal sY, qreal eX, qreal eY);
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget);
     CollisionCheckPoint *checkCollision();
+
+    int type() const;
+    enum { Type = UserType + 3};
 private:
     int length;
     std::vector<CollisionCheckPoint*> vec_senCheckPoints;

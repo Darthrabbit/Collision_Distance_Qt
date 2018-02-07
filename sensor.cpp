@@ -1,7 +1,10 @@
 #include "begrenzung.h"
 #include "sensor.h"
+#include "fahrzeug.h"
 #include <QDebug>
 #include <QtMath>
+#include <QElapsedTimer>
+
 Sensor::Sensor(qreal sX, qreal sY, qreal eX, qreal eY, int l, int numberPoints, QGraphicsItem *parent)
     : QGraphicsLineItem(sX,sY,eX,eY, parent), length(l)
 {
@@ -37,26 +40,22 @@ void Sensor::setPosition(qreal sX, qreal sY, qreal eX, qreal eY)
     }
 }
 
-void Sensor::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
+void Sensor::paint(QPainter *painter, const QStyleOptionGraphicsItem * option, QWidget *widget)
 {
-    for(auto &it : vec_senCheckPoints)
+    if(sensorCollosionPoint)
     {
-        if(it->state == AKTIV)
-        {
-            //painter->setOpacity(.5);
-            //QGraphicsLineItem::paint(painter, nullptr, nullptr);
-            //pen.setColor((it->state == AKTIV ? Qt::red : Qt::black));
-            QPen pen;
-            QBrush brush;
+        QGraphicsLineItem::paint(painter, option, widget);
+        QPen pen;
+        QBrush brush;
 
-            pen.setWidth(3);
-            brush.setStyle(Qt::SolidPattern);
-            pen.setColor(Qt::red);
-            brush.setColor(pen.color());
-            painter->setPen(pen);
-            painter->setBrush(brush);
-            painter->drawEllipse(QPoint(it->x, it->y), 1,1);
-        }
+        pen.setWidth(3);
+        pen.setColor(Qt::red);
+        brush.setStyle(Qt::SolidPattern);
+        brush.setColor(pen.color());
+
+        painter->setPen(pen);
+        painter->setBrush(brush);
+        painter->drawEllipse(QPoint(sensorCollosionPoint->x, sensorCollosionPoint->y), 1,1);
     }
 }
 
@@ -69,6 +68,7 @@ CollisionCheckPoint *Sensor::checkCollision()
     }
 
     CollisionCheckPoint* nearestCollisionPoint = nullptr;
+
     for(auto &it : collidingItems())
     {
         Begrenzung* collision = qgraphicsitem_cast<Begrenzung*>(it);
@@ -80,9 +80,8 @@ CollisionCheckPoint *Sensor::checkCollision()
                 for(auto &vec_beg : collision->boundCheckPoints())
                 {
                     QPointF mappedCoordinates = this->mapFromItem(vec_beg->parent, QPointF(vec_beg->x, vec_beg->y));
-
-                    qreal tempDistance = qSqrt((vec_sen->x - mappedCoordinates.x()) * (vec_sen->x - mappedCoordinates.x()) +
-                                               (vec_sen->y - mappedCoordinates.y()) * (vec_sen->y - mappedCoordinates.y()));
+                    qreal tempDistance = (vec_sen->x - mappedCoordinates.x()) * (vec_sen->x - mappedCoordinates.x()) +
+                            (vec_sen->y - mappedCoordinates.y()) * (vec_sen->y - mappedCoordinates.y());
                     if(tempDistance < minDistance)
                     {
                         minDistance = tempDistance;
@@ -99,4 +98,9 @@ CollisionCheckPoint *Sensor::checkCollision()
         sensorCollosionPoint->state = AKTIV;
     }
     return nearestCollisionPoint;
+}
+
+int Sensor::type() const
+{
+    return Type;
 }

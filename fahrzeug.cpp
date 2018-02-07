@@ -2,8 +2,9 @@
 #include <QtMath>
 #include <QPainter>
 #include <QDebug>
+#include <QElapsedTimer>
 Fahrzeug::Fahrzeug(qreal posX, qreal posY, int anzSensors)
-    : QGraphicsEllipseItem(QRectF(posX, posY, rad,rad), 0)
+    : QObject(0), QGraphicsEllipseItem(QRectF(posX, posY, rad,rad), 0)
 {
     setPos(posX, posY);
     for(int i = 0; i < anzSensors; i++)
@@ -15,7 +16,7 @@ Fahrzeug::Fahrzeug(qreal posX, qreal posY, int anzSensors)
 
 void Fahrzeug::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
 {
-    painter->drawEllipse(QPoint(0,0), rad, rad);
+    painter->drawEllipse(boundingRect());
 
     QBrush brush;
     brush.setStyle(Qt::SolidPattern);
@@ -37,6 +38,7 @@ void Fahrzeug::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidge
 
 void Fahrzeug::move()
 {
+
     rotate();
     if(speed != 0)
     {
@@ -52,17 +54,22 @@ void Fahrzeug::changeDirection(double sign)
 
 void Fahrzeug::checkSensors()
 {
-    qreal minDist = 9999;
+    if(nearestCollision)
+    {
+        nearestCollision->state = INAKTIV;
+        nearestCollision = nullptr;
+        collisionDistance = -1.0;
+    }
+    qreal minDist = 9999.0;
 
     for(auto &it : vec_vehSensors)
     {
         CollisionCheckPoint* temp = it->checkCollision();
         if(temp)
         {
-            QPointF mappedCoordinates = this->mapToParent(this->mapFromItem(temp->parent,
-                                                          QPointF(temp->x, temp->y)));
-            qreal tempDistance = qSqrt((x() - mappedCoordinates.x()) * (x() - mappedCoordinates.x()) +
-                                       (y() - mappedCoordinates.y()) * (y() - mappedCoordinates.y()));
+            QPointF mappedCoordinates = this->mapToParent(this->mapFromItem(temp->parent,QPointF(temp->x, temp->y)));
+            qreal tempDistance = (x() - mappedCoordinates.x()) * (x() - mappedCoordinates.x()) +
+                                       (y() - mappedCoordinates.y()) * (y() - mappedCoordinates.y());
             if(tempDistance < minDist)
             {
                 minDist = tempDistance;
@@ -73,7 +80,7 @@ void Fahrzeug::checkSensors()
     if(nearestCollision)
     {
         nearestCollision->state = AKTIV;
-        collisionDistance = minDist;
+        collisionDistance = qSqrt(minDist);
     }
 }
 
@@ -81,21 +88,17 @@ void Fahrzeug::advance(int phase)
 {
     if(phase == 0)
     {
-        if(nearestCollision)
-        {
-            nearestCollision->state = INAKTIV;
-            nearestCollision = nullptr;
-            collisionDistance = -1.0;
-        }
-        checkSensors();
-        move();
         return;
     }
+    move();
+
 }
 
 QRectF Fahrzeug::boundingRect() const
 {
-    return QRectF(-rad, -rad, 2.0 * rad, 2.0 * rad);
+    int shrink = 4;
+    int diameter = 2 * rad;
+    return QRectF(-rad + shrink, -rad + shrink, diameter - 2 * shrink, diameter- 2 * shrink);
 }
 
 QPainterPath Fahrzeug::shape() const
@@ -103,19 +106,7 @@ QPainterPath Fahrzeug::shape() const
     QGraphicsEllipseItem temp(boundingRect(),0);
     return temp.shape();
 }
-void Fahrzeug::rotate()
-{
-    qreal alpha = newDirection - direction;
-    if(alpha != 0)
-    {
-        for(auto &it : vec_vehSensors)
-        {
-            rotateSensor(it, alpha);
-        }
-        rotateFront();
-        direction = newDirection;
-    }
-}
+
 
 void Fahrzeug::accelerate()
 {
@@ -142,7 +133,27 @@ void Fahrzeug::setNewDirection(double newDir)
     newDirection = newDir;
 }
 
-void Fahrzeug::rotateSensor(Sensor *sensor, double alpha)
+int Fahrzeug::type() const
+{
+    return Type;
+}
+void Fahrzeug::rotate()
+{
+    qreal alpha = newDirection - direction;
+    if(alpha != 0)
+    {
+        if(2 * M_PI / static_cast<double>(vec_vehSensors.size()) >  rotation)
+        {
+            for(auto &it : vec_vehSensors)
+            {
+                rotateSensor(it, alpha);
+            }
+        }
+        rotateFront();
+        direction = newDirection;
+    }
+}
+void Fahrzeug::rotateSensor(Sensor *sensor, qreal alpha)
 {
     qreal newXStart = qCos(alpha) * sensor->line().x1() - qSin(alpha) * sensor->line().y1();
     qreal newXEnd = qCos(alpha) * sensor->line().x2() - qSin(alpha) * sensor->line().y2();
